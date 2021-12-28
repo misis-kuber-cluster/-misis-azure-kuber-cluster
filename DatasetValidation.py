@@ -4,6 +4,18 @@ import random
 import seaborn as sns
 from glob import glob
 from matplotlib import pyplot as plt
+import kaggle
+
+
+# Drop kaggle.json file into the C:/Users/**user**/.kaggle folder.
+# If it doesn't exist create that.
+def download_dataset():
+    kaggle.api.authenticate()
+    data_directory = "./data"
+    # can be long proccess
+    print("Downloading...")
+    kaggle.api.dataset_download_files("ikarus777/best-artworks-of-all-time", path=data_directory, unzip=True)
+    print("Dataset downloaded!")
 
 
 def print_files_from_directory(directory):
@@ -63,7 +75,6 @@ def show_painting_count_by_artists(artists):
     plt.xticks(rotation=90)
     plt.plot()
     plt.show()
-
 
 
 def print_random_paintings(image_counts, artists_top_name, images_dir):

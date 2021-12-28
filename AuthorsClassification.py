@@ -1,23 +1,16 @@
-import numpy as np
 import pandas as pd
-import os
-import cv2
-from collections import Counter
 from keras.applications.resnet import ResNet50
 from tensorflow.keras.optimizers import Adam
-from nltk.corpus import stopwords
 import matplotlib.pyplot as plt
-import seaborn as sns
 import os
-import shutil
-from glob import glob
-from keras.models import Sequential
-from keras.layers import Convolution2D, MaxPooling2D, Flatten, Dense, BatchNormalization
+from keras.layers import Flatten, Dense, BatchNormalization
 from keras.models import Model
-from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
+from keras.callbacks import ReduceLROnPlateau, EarlyStopping
 from keras.preprocessing.image import ImageDataGenerator
-
 import DatasetValidation
+
+
+# DatasetValidation.download_dataset() - call if dataset isn't downloaded.
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -37,16 +30,22 @@ def sort_artist_by_of_paintings(artists):
 artists_top = sort_artist_by_of_paintings(artists)
 
 class_weights = artists_top['class_weight'].to_dict()
-# print(class_weights)
 
-updated_name = "Albrecht_Dürer".replace("_", " ")
+'''
+В датасете ошибка в именовании папки с изображениями у этого автора
+'''
+updated_name = "Albrecht_Du╠êrer"
 artists_top.iloc[4, 0] = updated_name
 
 images_dir = './data/images/images/'
 artists_top_name = artists_top['name'].str.replace(' ', '_').values
 
-# Validations
+# Validation
+"""
 DatasetValidation.is_all_directories_exist(artists_top, images_dir)
+"""
+DatasetValidation.PlotImages("Vincent van Gogh", "data/images/images/Vincent_van_Gogh/**")
+
 
 batch_size = 64
 train_input_shape = (224, 224, 3)
@@ -103,20 +102,24 @@ model = Model(inputs=base_model.input, outputs=output)
 
 # Compile the CNN
 model.compile(optimizer=Adam(learning_rate=0.0001), loss='categorical_crossentropy', metrics=['accuracy'])
-n_epoch = 10
+
 early_stop = EarlyStopping(monitor='val_loss', patience=20, verbose=1,
                            mode='auto', restore_best_weights=True)
 
 reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=5,
                               verbose=1, mode='auto')
 
+n_epoch = 10
 history = model.fit(train_generator, steps_per_epoch=STEP_SIZE_TRAIN,
                     validation_data=valid_generator,
                     validation_steps=STEP_SIZE_VALID,
-                    epochs=1,
+                    epochs=n_epoch,
                     shuffle=True,
                     verbose=1,
+                    use_multiprocessing=True,
                     callbacks=[reduce_lr],
+
+                    workers=16,
                     class_weight=class_weights)
 
 # Freeze core ResNet layers and train again
@@ -134,11 +137,14 @@ model.compile(loss='categorical_crossentropy',
 
 n_epoch = 50
 history2 = model.fit(train_generator, steps_per_epoch=STEP_SIZE_TRAIN,
-                     validation_data=valid_generator, validation_steps=STEP_SIZE_VALID,
+                     validation_data=valid_generator,
+                     validation_steps=STEP_SIZE_VALID,
                      epochs=n_epoch,
                      shuffle=True,
                      verbose=1,
                      callbacks=[reduce_lr, early_stop],
+                     use_multiprocessing=True,
+                     workers=16,
                      class_weight=class_weights)
 
 plt.figure(figsize=(10, 10))
@@ -157,3 +163,9 @@ plt.legend()
 plt.title('Train - Accuracy')
 
 plt.show()
+
+score = model.evaluate_generator(train_generator, verbose=1)
+print("Prediction accuracy on train data =", score[1])
+
+score = model.evaluate_generator(valid_generator, verbose=1)
+print("Prediction accuracy on test data =", score[1])
