@@ -48,7 +48,7 @@ def PlotImages(artist, directory):
         plt.imshow(cv2.cvtColor(im, cv2.COLOR_BGR2RGB));
         plt.axis('off')
         i_ += 1
-    plt.show()
+    plt.imshow()
 
 
 def show_painting_count_by_artists(artists):
